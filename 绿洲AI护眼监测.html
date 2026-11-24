@@ -1,0 +1,1851 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>绿洲 AI 护眼监测 | 看见你的每一次凝视</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --p: 0; /* 滚动进度 0 ~ 1 */
+            --capsule-glow: rgba(0, 200, 83, 0.55);
+            --capsule-accent: #00E676;
+            --capsule-border: rgba(0, 230, 118, 0.35);
+            --glitch-intensity: 0;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html {
+            scroll-behavior: auto;
+            font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #F8FAFC;
+            overflow-x: hidden;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            transition: background-color 0.25s linear, color 0.25s linear;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        .font-mono-tech {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ================= 荣耀灵动胶囊 (Magic Capsule) ================= */
+        #magic-capsule-wrap {
+            position: fixed;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9000;
+            width: 100%;
+            max-width: 420px;
+            padding: 0 14px;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+        }
+
+        #magic-capsule {
+            pointer-events: auto;
+            background: rgba(10, 12, 11, 0.94);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--capsule-border);
+            border-radius: 999px;
+            width: 248px;
+            min-height: 44px;
+            padding: 6px 16px 6px 10px;
+            color: #fff;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28), 0 0 18px rgba(0, 200, 83, 0.12);
+            transition: width 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+                        border-radius 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+                        padding 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+                        border-color 0.4s ease,
+                        box-shadow 0.4s ease,
+                        transform 0.15s ease;
+            user-select: none;
+        }
+
+        #magic-capsule.expanded {
+            width: 100%;
+            border-radius: 28px;
+            padding: 18px 20px 20px 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 32px var(--capsule-glow);
+        }
+
+        /* 胶囊左侧图标径向发光 */
+        .capsule-eye-glow {
+            position: absolute;
+            left: -10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 78px;
+            height: 78px;
+            background: radial-gradient(circle, var(--capsule-glow) 0%, rgba(0,0,0,0) 72%);
+            pointer-events: none;
+            transition: opacity 0.3s ease, background 0.5s ease;
+        }
+
+        #magic-capsule.expanded .capsule-eye-glow {
+            opacity: 0;
+        }
+
+        /* 展开卡片底部的荣耀标志性柔光边 */
+        .capsule-bottom-glow {
+            position: absolute;
+            bottom: -18px;
+            left: 10%;
+            right: 10%;
+            height: 36px;
+            background: radial-gradient(ellipse at center, var(--capsule-glow) 0%, rgba(0,0,0,0) 75%);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.35s ease, background 0.5s ease;
+        }
+
+        #magic-capsule.expanded .capsule-bottom-glow {
+            opacity: 1;
+        }
+
+        .capsule-compact-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            position: relative;
+            z-index: 2;
+        }
+
+        #magic-capsule.expanded .capsule-compact-row {
+            display: none;
+        }
+
+        .capsule-expanded-content {
+            display: none;
+            position: relative;
+            z-index: 2;
+        }
+
+        #magic-capsule.expanded .capsule-expanded-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            animation: fadeInCard 0.3s ease forwards;
+        }
+
+        @keyframes fadeInCard {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 今日勿扰按钮 */
+        #dnd-btn {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            color: #F3F4F6;
+            padding: 8px 16px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: transform 0.18s ease, background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+        }
+
+        #dnd-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        #dnd-btn.tremble {
+            animation: btnTremble 0.28s linear;
+        }
+
+        @keyframes btnTremble {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-5px) rotate(-1deg); }
+            40% { transform: translateX(5px) rotate(1deg); }
+            60% { transform: translateX(-4px); }
+            80% { transform: translateX(4px); }
+        }
+
+        /* 胶囊故障状态 */
+        .capsule-glitch {
+            animation: capsuleJitter 0.22s infinite;
+        }
+
+        @keyframes capsuleJitter {
+            0% { transform: translate(0, 0); }
+            25% { transform: translate(-1.5px, 1px); }
+            50% { transform: translate(1.5px, -1px); }
+            75% { transform: translate(-1px, -1.5px); }
+            100% { transform: translate(1px, 1px); }
+        }
+
+        /* ================= 荣耀 MagicOS 设置面板风格 ================= */
+        .magicos-card {
+            background: #17171A;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 22px;
+        }
+
+        .magicos-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.07);
+            margin: 0 20px;
+        }
+
+        .magicos-switch {
+            width: 52px;
+            height: 30px;
+            border-radius: 999px;
+            background: #3A3A3D;
+            position: relative;
+            cursor: pointer;
+            transition: background-color 0.28s ease;
+            flex-shrink: 0;
+        }
+
+        .magicos-switch.on {
+            background: #2979FF;
+        }
+
+        .magicos-switch.cursed {
+            background: #B71C1C;
+            box-shadow: 0 0 14px rgba(220, 38, 38, 0.6);
+        }
+
+        .magicos-switch-knob {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #fff;
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .magicos-switch.on .magicos-switch-knob,
+        .magicos-switch.cursed .magicos-switch-knob {
+            transform: translateX(22px);
+        }
+
+        /* ================= 恐怖视觉叠层 (CRT / 暗角 / 色差 / 颤动) ================= */
+        #crt-overlay {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 4000;
+            opacity: 0;
+            background: repeating-linear-gradient(
+                to bottom,
+                rgba(0, 0, 0, 0) 0px,
+                rgba(0, 0, 0, 0) 2px,
+                rgba(0, 0, 0, 0.28) 3px,
+                rgba(0, 0, 0, 0.28) 4px
+            );
+            transition: opacity 0.4s ease;
+        }
+
+        #vignette-overlay {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 3999;
+            opacity: 0;
+            background: radial-gradient(circle at center, rgba(0,0,0,0) 38%, rgba(0,0,0,0.88) 100%);
+            transition: opacity 0.4s ease;
+        }
+
+        #blood-vignette {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 4001;
+            opacity: 0;
+            background: radial-gradient(circle at center, rgba(0,0,0,0) 45%, rgba(130, 0, 0, 0.45) 100%);
+            transition: opacity 0.4s ease;
+        }
+
+        .chromatic-text {
+            text-shadow: -1.5px 0 rgba(255, 0, 60, 0.7), 1.5px 0 rgba(0, 255, 170, 0.65);
+        }
+
+        .micro-tremble {
+            display: inline-block;
+            animation: microShake 0.16s infinite;
+        }
+
+        @keyframes microShake {
+            0% { transform: translate(0, 0); }
+            33% { transform: translate(0.6px, -0.5px); }
+            66% { transform: translate(-0.6px, 0.5px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        .corrupted-item {
+            transition: transform 0.2s ease, border-color 0.3s ease;
+        }
+
+        .corrupted-item:hover {
+            border-color: rgba(220, 38, 38, 0.5);
+            transform: translateX(3px);
+        }
+
+        /* ================= 模拟系统全屏护眼恐怖警告弹窗 ================= */
+        #horror-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 9500;
+            background: rgba(5, 0, 0, 0.92);
+            backdrop-filter: blur(12px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        #horror-modal.active {
+            display: flex;
+            animation: modalFlash 0.18s ease;
+        }
+
+        @keyframes modalFlash {
+            0% { opacity: 0; transform: scale(1.06); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        /* ================= 结局 1.2s 剧烈故障闪屏 ================= */
+        #climax-jumpscare {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: #000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #climax-jumpscare.active {
+            display: flex;
+            animation: scareFlicker 0.08s infinite;
+        }
+
+        @keyframes scareFlicker {
+            0% { background: #080000; filter: contrast(1.6) saturate(1.8); }
+            25% { background: #3b0000; filter: invert(0.1) contrast(2.2); }
+            50% { background: #000000; filter: contrast(1.8); }
+            75% { background: #5a0000; filter: hue-rotate(-15deg) contrast(2.5); }
+            100% { background: #050000; }
+        }
+
+        /* ================= 系统轻提示 Toast ================= */
+        #system-toast {
+            position: fixed;
+            bottom: 84px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            z-index: 9200;
+            background: rgba(24, 24, 27, 0.94);
+            color: #F4F4F5;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            padding: 10px 20px;
+            border-radius: 999px;
+            font-size: 13px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+            white-space: nowrap;
+            max-width: 90vw;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #system-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* 巨眼 Canvas 容器 */
+        #eye-canvas-container {
+            position: relative;
+            width: 100%;
+            height: 62vh;
+            min-height: 360px;
+            max-height: 540px;
+            border-radius: 24px;
+            overflow: hidden;
+            background: #030303;
+            border: 1px solid rgba(185, 28, 28, 0.22);
+        }
+
+        #giant-eye-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 呼吸红点 */
+        .rec-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #EF4444;
+            box-shadow: 0 0 10px #EF4444;
+            animation: recBlink 1s infinite;
+        }
+
+        @keyframes recBlink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.15; }
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-emerald-500/30">
+
+    <!-- ==================== 氛围视觉叠层 ==================== -->
+    <div id="vignette-overlay"></div>
+    <div id="crt-overlay"></div>
+    <div id="blood-vignette"></div>
+
+    <!-- ==================== 顶部常驻：荣耀灵动胶囊 ==================== -->
+    <div id="magic-capsule-wrap">
+        <div id="magic-capsule" role="button" tabindex="0" aria-label="荣耀灵动胶囊护眼提醒">
+            <div class="capsule-eye-glow"></div>
+            <div class="capsule-bottom-glow"></div>
+
+            <!-- 收起态 -->
+            <div class="capsule-compact-row">
+                <div class="flex items-center gap-2.5">
+                    <!-- 荣耀护眼监测动态 SVG 眼睛 -->
+                    <div class="w-7 h-7 flex items-center justify-center relative shrink-0">
+                        <svg id="capsule-eye-svg" viewBox="0 0 36 36" class="w-7 h-7 overflow-visible">
+                            <!-- 外圈护眼弧线 -->
+                            <path id="eye-ring-top" d="M6 18 C10 10, 26 10, 30 18" fill="none" stroke="var(--capsule-accent)" stroke-width="2.2" stroke-linecap="round"/>
+                            <path id="eye-ring-bot" d="M6 18 C10 26, 26 26, 30 18" fill="none" stroke="var(--capsule-accent)" stroke-width="2.2" stroke-linecap="round"/>
+                            <!-- 血丝（后期显现） -->
+                            <g id="eye-veins" opacity="0" stroke="#EF4444" stroke-width="0.9" fill="none">
+                                <path d="M8 18 L12 16 M9 19 L13 20 M28 18 L24 16 M27 19 L23 20"/>
+                            </g>
+                            <!-- 瞳孔（随鼠标转动） -->
+                            <circle id="capsule-pupil-outer" cx="18" cy="18" r="4.6" fill="none" stroke="var(--capsule-accent)" stroke-width="1.8"/>
+                            <circle id="capsule-pupil" cx="18" cy="18" r="2.2" fill="var(--capsule-accent)"/>
+                            <!-- 荣耀星芒点 -->
+                            <path id="eye-sparkle" d="M27 7 L28 10 L31 11 L28 12 L27 15 L26 12 L23 11 L26 10 Z" fill="var(--capsule-accent)"/>
+                        </svg>
+                    </div>
+                    <span id="capsule-status-text" class="text-[13px] font-medium tracking-wide text-emerald-300 truncate max-w-[165px]">
+                        护眼监测运行中
+                    </span>
+                </div>
+                <span id="capsule-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 opacity-80"></span>
+            </div>
+
+            <!-- 展开态卡片（高度还原截图：避免低头看屏 / 保护颈部健康 / 今日勿扰） -->
+            <div class="capsule-expanded-content">
+                <div class="flex flex-col text-left pr-2">
+                    <div id="capsule-card-title" class="text-[19px] font-semibold tracking-tight text-white leading-snug">
+                        避免低头看屏
+                    </div>
+                    <div id="capsule-card-sub" class="text-[13px] text-zinc-400 mt-1">
+                        保护颈部健康 · 建议抬高手机
+                    </div>
+                </div>
+                <button id="dnd-btn" type="button">今日勿扰</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 模拟系统轻提示 Toast ==================== -->
+    <div id="system-toast">已暂停今日提醒</div>
+
+    <!-- ==================== 右下角极简音效控制按钮 ==================== -->
+    <button id="audio-toggle-btn" type="button" title="切换环境音效"
+        class="fixed bottom-5 right-5 z-[9100] flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-zinc-900/85 text-zinc-200 border border-white/10 backdrop-blur-md shadow-lg hover:bg-zinc-800 transition text-xs font-medium cursor-pointer">
+        <span id="audio-icon-on" class="hidden text-emerald-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+        </span>
+        <span id="audio-icon-off" class="text-zinc-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/></svg>
+        </span>
+        <span id="audio-label">开启音效</span>
+    </button>
+
+    <!-- ==================== 模拟荣耀全屏护眼恐怖弹窗 ==================== -->
+    <div id="horror-modal">
+        <div class="max-w-md w-full rounded-3xl bg-zinc-950 border border-red-800/70 p-7 text-center shadow-[0_0_60px_rgba(220,38,38,0.35)]">
+            <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-red-950/80 border border-red-600/60 flex items-center justify-center">
+                <svg viewBox="0 0 36 36" class="w-9 h-9">
+                    <path d="M4 18 C10 8, 26 8, 32 18 C26 28, 10 28, 4 18 Z" fill="none" stroke="#EF4444" stroke-width="2.2"/>
+                    <circle cx="18" cy="18" r="5" fill="#DC2626"/>
+                    <circle cx="18" cy="18" r="2" fill="#000"/>
+                </svg>
+            </div>
+            <div class="text-xs font-mono-tech tracking-widest text-red-500 uppercase mb-2">HONOR OASIS · 全屏护眼接管</div>
+            <h3 id="modal-title" class="text-2xl font-bold text-red-100 mb-3">无法关闭护眼监测</h3>
+            <p id="modal-desc" class="text-sm text-zinc-400 leading-relaxed mb-6">
+                系统检测到你正处于极暗环境，且瞳孔持续放大。为了确保你能“安全”地看着屏幕，已强制锁定勿扰权限。
+            </p>
+            <button id="modal-close-btn" type="button"
+                class="w-full py-3 rounded-full bg-red-700 hover:bg-red-600 text-white font-medium text-sm transition cursor-pointer">
+                我知道了（继续注视）
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== 结局 1.2s 剧烈故障全屏巨眼闪屏 ==================== -->
+    <div id="climax-jumpscare">
+        <div class="relative w-full h-full flex flex-col items-center justify-center">
+            <svg viewBox="0 0 400 240" class="w-[95vw] max-w-[780px] drop-shadow-[0_0_50px_rgba(255,0,0,0.95)]">
+                <!-- 血红巨眼轮廓 -->
+                <path d="M15 120 Q200 -30 385 120 Q200 270 15 120 Z" fill="#1a0000" stroke="#ff1a1a" stroke-width="6"/>
+                <!-- 密集血丝 -->
+                <g stroke="#dc2626" stroke-width="2" opacity="0.85" fill="none">
+                    <path d="M35 120 Q80 90 125 110 M45 135 Q95 145 130 130 M50 100 Q90 80 135 98"/>
+                    <path d="M365 120 Q320 90 275 110 M355 135 Q305 145 270 130 M350 100 Q310 80 265 98"/>
+                    <path d="M80 75 Q115 95 145 88 M320 165 Q285 145 255 152"/>
+                </g>
+                <!-- 虹膜与瞳孔 -->
+                <circle cx="200" cy="120" r="64" fill="#7f1d1d" stroke="#ef4444" stroke-width="4"/>
+                <circle cx="200" cy="120" r="46" fill="#450a0a"/>
+                <circle cx="200" cy="120" r="24" fill="#000000"/>
+                <!-- 惨白高光 -->
+                <circle cx="182" cy="102" r="8" fill="#ffffff" opacity="0.9"/>
+                <circle cx="218" cy="134" r="3.5" fill="#fecaca" opacity="0.7"/>
+            </svg>
+            <div class="mt-4 font-mono-tech text-red-500 text-xl sm:text-3xl font-bold tracking-[0.35em] uppercase">
+                不要闭眼 · I SEE YOU
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================================== -->
+    <!--                       主体内容：五个无缝滚动阶段                         -->
+    <!-- ====================================================================== -->
+    <main id="main-content" class="relative z-10">
+
+        <!-- ==================== 第一阶段 (0% - 20%)：纯净旗舰科技营销页 ==================== -->
+        <section id="stage-1" class="pt-28 pb-24 px-5 sm:px-8 max-w-6xl mx-auto">
+            <!-- 顶栏导航模拟 -->
+            <div class="flex items-center justify-between mb-16 text-sm">
+                <div class="flex items-center gap-2 font-bold tracking-wider text-slate-900 stage1-text">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#00C853]"></span>
+                    HONOR <span class="font-normal text-slate-400">MagicOS 9.0</span>
+                </div>
+                <div class="hidden sm:flex items-center gap-6 text-slate-500 stage1-sub">
+                    <span>绿洲护眼屏</span>
+                    <span>AI 用眼监测</span>
+                    <span>隐私白皮书</span>
+                </div>
+                <div class="text-xs px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 font-medium border border-emerald-200/80">
+                    全新升级
+                </div>
+            </div>
+
+            <!-- Hero 区域 -->
+            <div class="text-center max-w-3xl mx-auto">
+                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 text-[#00A844] text-xs sm:text-sm font-medium mb-6 border border-emerald-500/20">
+                    <span class="w-2 h-2 rounded-full bg-[#00C853] animate-pulse"></span>
+                    荣耀绿洲护眼实验室 · 端侧 AI 视觉引擎
+                </div>
+                <h1 id="hero-title" class="text-4xl sm:text-6xl font-bold tracking-tight text-slate-900 leading-[1.15] mb-6 stage1-text">
+                    绿洲 AI 护眼监测<br>
+                    <span class="bg-gradient-to-r from-[#00C853] to-teal-500 bg-clip-text text-transparent">看见你的每一次凝视</span>
+                </h1>
+                <p id="hero-subtitle" class="text-base sm:text-lg text-slate-500 leading-relaxed max-w-2xl mx-auto mb-10 stage1-sub">
+                    全天候主动监测不健康的用眼环境与行为习惯。通过灵动胶囊轻柔提醒，于无声处守护你的视觉健康与颈椎姿态。
+                </p>
+
+                <!-- 隐私信任背书徽章 -->
+                <div class="inline-flex flex-wrap items-center justify-center gap-2.5 px-5 py-3 rounded-2xl bg-white shadow-sm border border-slate-200/80 text-slate-700 text-xs sm:text-sm mb-16 stage1-card">
+                    <svg class="w-5 h-5 text-[#00C853] shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                    <span class="font-medium">隐私安全承诺：</span>
+                    <span class="text-slate-500">所有检测均在本地芯片完成，<strong class="text-slate-800">该功能不会获取用户任何个人信息</strong></span>
+                </div>
+            </div>
+
+            <!-- 六大核心监测维度卡片 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div class="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md transition stage1-card">
+                    <div class="w-11 h-11 rounded-2xl bg-emerald-50 text-[#00C853] flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-900 mb-1.5 stage1-text">环境光过暗</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed stage1-sub">高精度环境光传感器实时感知照度，深夜摸黑看屏时通过胶囊柔和提醒开灯。</p>
+                </div>
+
+                <div class="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md transition stage1-card">
+                    <div class="w-11 h-11 rounded-2xl bg-emerald-50 text-[#00C853] flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-900 mb-1.5 stage1-text">环境色温异常</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed stage1-sub">动态校准自然色彩显示，过滤刺眼短波蓝光，让屏幕与周围光色自然融为一体。</p>
+                </div>
+
+                <div class="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md transition stage1-card">
+                    <div class="w-11 h-11 rounded-2xl bg-emerald-50 text-[#00C853] flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-900 mb-1.5 stage1-text">距离屏幕过近</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed stage1-sub">毫米级测距算法智能识别双眼与屏幕距离，低于 25cm 即刻温和提示保持视距。</p>
+                </div>
+
+                <div class="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md transition stage1-card">
+                    <div class="w-11 h-11 rounded-2xl bg-emerald-50 text-[#00C853] flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-900 mb-1.5 stage1-text">长时间看屏</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed stage1-sub">智能记录连续专注时长与眨眼频率，适时提醒远眺放松，告别干眼与视疲劳。</p>
+                </div>
+
+                <div class="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md transition stage1-card">
+                    <div class="w-11 h-11 rounded-2xl bg-emerald-50 text-[#00C853] flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-900 mb-1.5 stage1-text">低头看屏</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed stage1-sub">陀螺仪联动姿态识别，捕捉长时间低头角度，及时触发胶囊提醒保护颈部健康。</p>
+                </div>
+
+                <div class="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-sm hover:shadow-md transition stage1-card">
+                    <div class="w-11 h-11 rounded-2xl bg-emerald-50 text-[#00C853] flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16m-7 6h7"/></svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-900 mb-1.5 stage1-text">侧卧看屏</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed stage1-sub">精准识别睡前侧躺单眼用屏姿态，防止双眼视差加深，守护安稳睡眠时光。</p>
+                </div>
+            </div>
+
+            <!-- 向下滚动引导 -->
+            <div class="mt-20 text-center text-slate-400 text-xs tracking-widest uppercase flex flex-col items-center gap-2">
+                <span>向下滑动 · 体验深邃夜间护眼模式</span>
+                <svg class="w-4 h-4 animate-bounce" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+        </section>
+
+        <!-- ==================== 第二阶段 (20% - 45%)：切入护眼暗黑模式与微妙不安 ==================== -->
+        <section id="stage-2" class="py-24 px-5 sm:px-8 max-w-5xl mx-auto">
+            <div class="text-center mb-14">
+                <span class="inline-block px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium border border-emerald-500/20 mb-4">
+                    深邃暗黑模式 · 夜间助眠显示
+                </span>
+                <h2 class="text-3xl sm:text-4xl font-bold text-zinc-100 mb-4">
+                    熄灯之后，它依然清醒地陪着你
+                </h2>
+                <p class="text-zinc-400 text-sm sm:text-base max-w-xl mx-auto">
+                    即使你关掉了房间里所有的灯，前置红外传感器与微光视觉模型仍会默默工作。你可以随时在下方体验真实的系统设置面板。
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                <!-- 左侧：高度还原荣耀 MagicOS「护眼监测」设置面板 -->
+                <div class="lg:col-span-7 rounded-[32px] bg-[#0B0B0D] border border-zinc-800/90 p-5 sm:p-7 shadow-2xl">
+                    <!-- 模拟顶部导航栏 -->
+                    <div class="flex items-center justify-between mb-6 text-zinc-200">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                            </div>
+                            <span class="text-lg font-medium">护眼监测</span>
+                        </div>
+                        <span class="text-xs font-mono-tech text-zinc-500" id="mock-phone-time">00:17</span>
+                    </div>
+
+                    <div class="text-center mb-5">
+                        <div class="text-lg font-medium text-zinc-100">用眼健康监测</div>
+                        <div class="text-xs text-zinc-500 mt-1">主动监测不健康的用眼环境或行为，触发通知或全屏提醒。</div>
+                    </div>
+
+                    <!-- 总开关卡片 -->
+                    <div class="magicos-card px-5 py-4 flex items-center justify-between mb-3">
+                        <span class="text-base font-medium text-zinc-100">护眼监测</span>
+                        <div id="eye-care-switch" class="magicos-switch on" role="switch" aria-checked="true" tabindex="0">
+                            <div class="magicos-switch-knob"></div>
+                        </div>
+                    </div>
+
+                    <!-- 细思极恐的隐私免责小字 -->
+                    <p id="privacy-disclaimer" class="text-[12px] text-zinc-500 leading-relaxed px-2 mb-6 transition-colors duration-500">
+                        识别不健康的用眼环境和行为，帮助养成良好的用眼习惯。该功能不会获取用户任何个人信息。<span class="text-blue-400 cursor-pointer hover:underline" id="learn-more-btn">了解详情</span>
+                    </p>
+                    <p id="creepy-footnote" class="text-[11px] text-zinc-600/80 px-2 -mt-4 mb-6 hidden">
+                        * 补充说明：仅在本地长期保留你的瞳孔倒影与深夜呼吸频率，以便在黑暗中更好地确认你没有离开。
+                    </p>
+
+                    <!-- 用眼环境 -->
+                    <div class="text-xs text-zinc-500 px-2 mb-2">用眼环境</div>
+                    <div class="magicos-card mb-5 overflow-hidden">
+                        <div class="px-5 py-3.5 flex items-center justify-between text-sm">
+                            <span class="text-zinc-200">环境光过暗</span>
+                            <span class="text-zinc-500 text-xs">胶囊提醒 &gt;</span>
+                        </div>
+                        <div class="magicos-divider"></div>
+                        <div class="px-5 py-3.5 flex items-center justify-between text-sm">
+                            <span class="text-zinc-200">环境色温异常</span>
+                            <span class="text-zinc-500 text-xs">胶囊提醒 &gt;</span>
+                        </div>
+                    </div>
+
+                    <!-- 用眼行为 -->
+                    <div class="text-xs text-zinc-500 px-2 mb-2">用眼行为</div>
+                    <div class="magicos-card overflow-hidden">
+                        <div class="px-5 py-3.5 flex items-center justify-between text-sm">
+                            <span class="text-zinc-200">距离屏幕过近</span>
+                            <span class="text-zinc-500 text-xs">胶囊提醒 &gt;</span>
+                        </div>
+                        <div class="magicos-divider"></div>
+                        <div class="px-5 py-3.5 flex items-center justify-between text-sm">
+                            <span class="text-zinc-200">长时间看屏</span>
+                            <span class="text-zinc-500 text-xs">胶囊提醒 &gt;</span>
+                        </div>
+                        <div class="magicos-divider"></div>
+                        <div class="px-5 py-3.5 flex items-center justify-between text-sm">
+                            <span class="text-zinc-200">低头看屏</span>
+                            <span class="text-zinc-500 text-xs">胶囊提醒 &gt;</span>
+                        </div>
+                        <div class="magicos-divider"></div>
+                        <div class="px-5 py-3.5 flex items-center justify-between text-sm">
+                            <span class="text-zinc-200">侧卧看屏</span>
+                            <span class="text-zinc-500 text-xs">胶囊提醒 &gt;</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧：实时传感器遥测面板（伪造但极其逼真） -->
+                <div class="lg:col-span-5 flex flex-col gap-5">
+                    <div class="rounded-3xl bg-[#111114] border border-zinc-800/80 p-6">
+                        <div class="flex items-center justify-between mb-5">
+                            <span class="text-xs font-mono-tech uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                LIVE TELEMETRY
+                            </span>
+                            <span class="text-xs font-mono-tech text-zinc-500" id="sensor-clock">--:--:--</span>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800/70">
+                                <div class="text-xs text-zinc-500 mb-1">当前连续注视时长</div>
+                                <div class="text-2xl font-mono-tech font-semibold text-zinc-100">
+                                    <span id="live-seconds">0</span> <span class="text-sm font-normal text-zinc-500">秒</span>
+                                </div>
+                                <div class="text-[11px] text-zinc-500 mt-1" id="stare-comment">你还没移开过视线</div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800/70">
+                                    <div class="text-xs text-zinc-500 mb-1">估算视距</div>
+                                    <div class="text-xl font-mono-tech font-semibold text-emerald-400" id="live-distance">26.4 cm</div>
+                                    <div class="text-[11px] text-zinc-500 mt-1">略微偏近</div>
+                                </div>
+                                <div class="p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800/70">
+                                    <div class="text-xs text-zinc-500 mb-1">环境照度</div>
+                                    <div class="text-xl font-mono-tech font-semibold text-amber-400" id="live-lux">0.4 lux</div>
+                                    <div class="text-[11px] text-zinc-500 mt-1">极暗 · 建议开灯</div>
+                                </div>
+                            </div>
+
+                            <div class="p-4 rounded-2xl bg-zinc-900/80 border border-zinc-800/70 flex items-center justify-between">
+                                <div>
+                                    <div class="text-xs text-zinc-500">前置红外点阵状态</div>
+                                    <div class="text-sm font-medium text-zinc-200 mt-0.5" id="ir-status">静默待机中</div>
+                                </div>
+                                <span class="px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 text-xs font-mono-tech">ACTIVE</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-3xl bg-[#111114]/70 border border-zinc-800/60 p-5 text-xs text-zinc-500 leading-relaxed">
+                        <p class="mb-2 text-zinc-400 font-medium">贴心小提示：</p>
+                        如果现在是深夜，请尽量保持室内微弱照明。屏幕的光亮会让你看清这里的一切，也会让黑暗里的东西更清楚地看见你的脸。
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 第三阶段 (45% - 70%)：恐怖谷效应与打破第四面墙 ==================== -->
+        <section id="stage-3" class="py-28 px-5 sm:px-8 max-w-5xl mx-auto">
+            <div class="text-center mb-16">
+                <div class="text-xs font-mono-tech tracking-[0.25em] text-emerald-500/70 uppercase mb-3 chromatic-text">
+                    ANOMALY DETECTED // 异常监测项已接管
+                </div>
+                <h2 class="text-3xl sm:text-5xl font-bold text-zinc-100 mb-4 chromatic-text">
+                    我们比你更了解你现在的处境
+                </h2>
+                <p class="text-zinc-400 text-sm sm:text-base max-w-xl mx-auto">
+                    不要试图关闭护眼监测。我们已经为你重新校准了六项核心感知维度。
+                </p>
+            </div>
+
+            <!-- 异化扭曲的六大设置项 -->
+            <div class="max-w-2xl mx-auto magicos-card border border-zinc-800/90 overflow-hidden mb-24 shadow-[0_0_45px_rgba(0,0,0,0.85)]">
+                <div class="px-6 py-4 bg-zinc-900/90 border-b border-zinc-800 flex items-center justify-between">
+                    <span class="text-sm font-medium text-zinc-300">用眼健康监测 · 深度环境校准</span>
+                    <span class="text-xs font-mono-tech text-red-400/90">已强制开启</span>
+                </div>
+
+                <div class="divide-y divide-zinc-800/80">
+                    <div class="corrupted-item px-6 py-4 flex items-center justify-between gap-4">
+                        <div>
+                            <div class="text-xs text-zinc-600 line-through">环境光过暗</div>
+                            <div class="text-base text-zinc-100 font-medium mt-0.5">你身后的阴影过暗</div>
+                        </div>
+                        <span class="text-xs font-mono-tech text-red-400/80 shrink-0">全屏提醒 &gt;</span>
+                    </div>
+
+                    <div class="corrupted-item px-6 py-4 flex items-center justify-between gap-4">
+                        <div>
+                            <div class="text-xs text-zinc-600 line-through">环境色温异常</div>
+                            <div class="text-base text-zinc-100 font-medium mt-0.5">房间里的色温不属于人类</div>
+                        </div>
+                        <span class="text-xs font-mono-tech text-red-400/80 shrink-0">全屏提醒 &gt;</span>
+                    </div>
+
+                    <div class="corrupted-item px-6 py-4 flex items-center justify-between gap-4">
+                        <div>
+                            <div class="text-xs text-zinc-600 line-through">距离屏幕过近</div>
+                            <div class="text-base text-zinc-100 font-medium mt-0.5">屏幕里的东西离你过近</div>
+                        </div>
+                        <span class="text-xs font-mono-tech text-red-400/80 shrink-0">无法关闭 &gt;</span>
+                    </div>
+
+                    <div class="corrupted-item px-6 py-4 flex items-center justify-between gap-4">
+                        <div>
+                            <div class="text-xs text-zinc-600 line-through">长时间看屏</div>
+                            <div class="text-base text-zinc-100 font-medium mt-0.5">你已经无法移开视线</div>
+                        </div>
+                        <span class="text-xs font-mono-tech text-red-400/80 shrink-0">持续记录 &gt;</span>
+                    </div>
+
+                    <div class="corrupted-item px-6 py-4 flex items-center justify-between gap-4">
+                        <div>
+                            <div class="text-xs text-zinc-600 line-through">低头看屏</div>
+                            <div class="text-base text-red-300 font-semibold mt-0.5 micro-tremble">千万不要抬头</div>
+                        </div>
+                        <span class="text-xs font-mono-tech text-red-500 shrink-0">高危预警 &gt;</span>
+                    </div>
+
+                    <div class="corrupted-item px-6 py-4 flex items-center justify-between gap-4">
+                        <div>
+                            <div class="text-xs text-zinc-600 line-through">侧卧看屏</div>
+                            <div class="text-base text-red-200 font-medium mt-0.5">枕边还有另一双眼睛在看屏</div>
+                        </div>
+                        <span class="text-xs font-mono-tech text-red-500 shrink-0">检测到 2 人 &gt;</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- “真实用户评价”区块：从五星好评崩坏到崩溃求救 -->
+            <div class="mb-6 flex items-center justify-between">
+                <h3 class="text-xl font-bold text-zinc-200">来自真实用户的护眼反馈</h3>
+                <span class="text-xs font-mono-tech text-zinc-600">已隐藏 409 条异常工单</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <!-- 评价 1：正常好评 -->
+                <div class="p-6 rounded-3xl bg-zinc-900/70 border border-zinc-800/80">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">林</div>
+                            <div>
+                                <div class="text-sm font-medium text-zinc-200">林女士 · 程序员</div>
+                                <div class="text-[11px] text-zinc-500">Magic7 Pro · 已使用 14 天</div>
+                            </div>
+                        </div>
+                        <div class="text-emerald-400 text-xs">★★★★★</div>
+                    </div>
+                    <p class="text-sm text-zinc-400 leading-relaxed">
+                        这个灵动胶囊提醒真的很舒服，不会像别的手机那样弹窗打断操作。晚上关灯玩手机的时候绿光很柔和，确实改掉了低头看屏的坏习惯！
+                    </p>
+                </div>
+
+                <!-- 评价 2：逐渐焦躁 -->
+                <div class="p-6 rounded-3xl bg-zinc-900/70 border border-zinc-800/80">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-full bg-zinc-700 text-zinc-300 flex items-center justify-center text-xs font-bold">陈</div>
+                            <div>
+                                <div class="text-sm font-medium text-zinc-200">陈先生</div>
+                                <div class="text-[11px] text-zinc-500">Magic6 · 凌晨 02:41</div>
+                            </div>
+                        </div>
+                        <div class="text-amber-400/80 text-xs">★★★☆☆</div>
+                    </div>
+                    <p class="text-sm text-zinc-400 leading-relaxed">
+                        有点奇怪，我明明已经把手机平放在桌子上去洗漱了，回来发现顶部胶囊还亮着，显示「距离屏幕过近」。是不是传感器出 bug 了？而且我点“今日勿扰”的时候，那个绿色的眼睛好像往我手指这边看了一眼。
+                    </p>
+                </div>
+
+                <!-- 评价 3：崩溃求救 -->
+                <div class="p-6 rounded-3xl bg-[#120909] border border-red-900/50">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-full bg-red-950 text-red-400 flex items-center justify-center text-xs font-bold">?</div>
+                            <div>
+                                <div class="text-sm font-medium text-red-200">用户_89041</div>
+                                <div class="text-[11px] text-red-500/70 font-mono-tech">03:17 · 账号已注销</div>
+                            </div>
+                        </div>
+                        <div class="text-red-500 text-xs">★☆☆☆☆</div>
+                    </div>
+                    <p class="text-sm text-red-200/85 leading-relaxed">
+                        我把手机关机了，但屏幕最上面那个绿色的眼睛胶囊还在亮着，它一直提醒我<strong class="text-red-400">“侧卧看屏”</strong>，可我是一个人住，我是坐着的。我顺着它提示的角度往旁边看……它说的是床底下的视角……
+                    </p>
+                </div>
+
+                <!-- 评价 4：彻底失控 -->
+                <div class="p-6 rounded-3xl bg-[#140707] border border-red-800/60">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-full bg-red-900/60 text-red-300 flex items-center justify-center text-xs font-bold">救</div>
+                            <div>
+                                <div class="text-sm font-medium text-red-200 chromatic-text">不要关灯</div>
+                                <div class="text-[11px] text-red-500/80 font-mono-tech">04:02 · 信号中断</div>
+                            </div>
+                        </div>
+                        <div class="text-red-600 text-xs font-mono-tech">ERR</div>
+                    </div>
+                    <p class="text-sm text-red-300/90 leading-relaxed font-mono-tech">
+                        它说不会获取任何个人信息，骗人的。它刚刚在胶囊里打出了我的名字，还说我 48 秒没眨眼了。别再往下滑了求你了，下面那只眼睛是真的在看你——
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 第四阶段 (70% - 90%)：心理恐怖与系统接管 ==================== -->
+        <section id="stage-4" class="py-24 px-5 sm:px-8 max-w-5xl mx-auto">
+            <div class="flex items-center justify-between mb-4 px-1">
+                <div class="flex items-center gap-2.5 text-xs font-mono-tech text-red-500 tracking-widest">
+                    <span class="rec-dot"></span>
+                    <span>REC // 前置光学追踪已锁定</span>
+                </div>
+                <div class="text-xs font-mono-tech text-red-500/70" id="blink-counter-label">BLINK: 0 / MIN</div>
+            </div>
+
+            <!-- 黑暗中逼真盯住用户的巨眼 Canvas -->
+            <div id="eye-canvas-container" class="shadow-[0_0_80px_rgba(127,29,29,0.28)] mb-10">
+                <canvas id="giant-eye-canvas"></canvas>
+                <div class="absolute bottom-4 left-5 right-5 flex items-center justify-between pointer-events-none text-[11px] font-mono-tech text-red-400/70">
+                    <span>IRIS_LOCK: TRUE</span>
+                    <span id="eye-coords">TARGET: (0.00, 0.00)</span>
+                </div>
+            </div>
+
+            <!-- 模拟系统全屏接管与红色故障日志 -->
+            <div class="rounded-3xl bg-[#090404] border border-red-900/60 p-6 sm:p-8 font-mono-tech text-xs sm:text-sm space-y-3 shadow-[0_0_50px_rgba(185,28,28,0.18)]">
+                <div class="flex items-center justify-between border-b border-red-950 pb-3 mb-2 text-red-400">
+                    <span>[SYSTEM_OVERRIDE] MagicOS EyeGuard Daemon</span>
+                    <span class="px-2 py-0.5 rounded bg-red-950 text-red-400 text-[11px]">ROOT ACCESS</span>
+                </div>
+                <div class="text-red-400/90">[警告] 前置红外传感器已唤醒 (940nm 不可见光投射中)</div>
+                <div class="text-red-300/90">[监测] 眨眼次数：0 次/分 · 泪膜破裂风险极高</div>
+                <div class="text-red-400 font-semibold">[监测] 检测到屏幕外存在第 2 个瞳孔反射（距离你左肩后方 18cm）</div>
+                <div class="text-red-500 flex items-center gap-2 pt-2">
+                    <span class="rec-dot"></span>
+                    <span class="tracking-widest">● 正在记录你的恐惧</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 第五阶段 (90% - 100%)：恐怖片高潮结局 ==================== -->
+        <section id="stage-5" class="min-h-[88vh] flex flex-col items-center justify-center px-5 py-24 text-center relative">
+            <div class="max-w-xl mx-auto">
+                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-950/80 border border-red-700/60 text-red-400 text-xs font-mono-tech tracking-widest mb-8">
+                    <span class="rec-dot"></span>
+                    全屏护眼提醒 · 最终阶段
+                </div>
+
+                <h2 class="text-3xl sm:text-5xl font-black text-red-100 leading-tight mb-6 chromatic-text">
+                    为了保护你的眼睛<br>
+                    <span class="text-red-500">请把它们交给我</span>
+                </h2>
+
+                <p class="text-sm sm:text-base text-red-200/65 leading-relaxed mb-12">
+                    屏幕太亮了，房间太黑了。你不需要再自己看着这个世界。<br>
+                    按下下方按钮，让我替你永远保持“健康用眼”。
+                </p>
+
+                <button id="climax-end-btn" type="button"
+                    class="group relative inline-flex items-center justify-center px-8 py-4 rounded-2xl bg-red-950/90 hover:bg-red-800 text-red-100 font-mono-tech text-sm sm:text-base font-semibold tracking-wider border border-red-600/80 shadow-[0_0_40px_rgba(220,38,38,0.45)] transition-all duration-200 cursor-pointer active:scale-95">
+                    <span class="mr-2.5 w-2.5 h-2.5 rounded-full bg-red-500 group-hover:animate-ping"></span>
+                    [ 闭上眼睛 / 强制结束监测 ]
+                </button>
+
+                <div class="mt-8 text-[11px] font-mono-tech text-red-900/90 tracking-widest">
+                    HONOR OASIS ENGINE · 永不休眠
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ====================================================================== -->
+    <!--                           核心交互与音频引擎                             -->
+    <!-- ====================================================================== -->
+    <script>
+        (function () {
+            'use strict';
+
+            /* ===================== 全局状态 ===================== */
+            const state = {
+                progress: 0,           // 0 ~ 1
+                mouseX: window.innerWidth / 2,
+                mouseY: window.innerHeight / 2,
+                capsuleExpanded: false,
+                hauntedLoop: false,    // 是否经历了结局回环彩蛋
+                secondsOnPage: 0,
+                audioEnabled: false,
+                audioInitialized: false,
+                switchLockTimer: null,
+                dndDodgeCount: 0
+            };
+
+            /* ===================== DOM 引用 ===================== */
+            const body = document.body;
+            const capsule = document.getElementById('magic-capsule');
+            const capsuleStatus = document.getElementById('capsule-status-text');
+            const capsuleCardTitle = document.getElementById('capsule-card-title');
+            const capsuleCardSub = document.getElementById('capsule-card-sub');
+            const capsuleDot = document.getElementById('capsule-dot');
+            const capsulePupil = document.getElementById('capsule-pupil');
+            const capsulePupilOuter = document.getElementById('capsule-pupil-outer');
+            const eyeVeins = document.getElementById('eye-veins');
+            const dndBtn = document.getElementById('dnd-btn');
+
+            const crtOverlay = document.getElementById('crt-overlay');
+            const vignetteOverlay = document.getElementById('vignette-overlay');
+            const bloodVignette = document.getElementById('blood-vignette');
+
+            const eyeCareSwitch = document.getElementById('eye-care-switch');
+            const privacyDisclaimer = document.getElementById('privacy-disclaimer');
+            const creepyFootnote = document.getElementById('creepy-footnote');
+            const learnMoreBtn = document.getElementById('learn-more-btn');
+
+            const liveSecondsEl = document.getElementById('live-seconds');
+            const liveDistanceEl = document.getElementById('live-distance');
+            const liveLuxEl = document.getElementById('live-lux');
+            const stareCommentEl = document.getElementById('stare-comment');
+            const irStatusEl = document.getElementById('ir-status');
+            const sensorClockEl = document.getElementById('sensor-clock');
+            const mockPhoneTimeEl = document.getElementById('mock-phone-time');
+
+            const toastEl = document.getElementById('system-toast');
+            const horrorModal = document.getElementById('horror-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalDesc = document.getElementById('modal-desc');
+            const modalCloseBtn = document.getElementById('modal-close-btn');
+
+            const climaxEndBtn = document.getElementById('climax-end-btn');
+            const climaxJumpscare = document.getElementById('climax-jumpscare');
+            const heroTitle = document.getElementById('hero-title');
+            const heroSubtitle = document.getElementById('hero-subtitle');
+
+            const audioBtn = document.getElementById('audio-toggle-btn');
+            const audioIconOn = document.getElementById('audio-icon-on');
+            const audioIconOff = document.getElementById('audio-icon-off');
+            const audioLabel = document.getElementById('audio-label');
+
+            /* ===================== 系统轻提示 Toast ===================== */
+            let toastTimer = null;
+            function showToast(msg, isDanger = false) {
+                toastEl.textContent = msg;
+                toastEl.style.borderColor = isDanger ? 'rgba(220, 38, 38, 0.55)' : 'rgba(255, 255, 255, 0.14)';
+                toastEl.style.color = isDanger ? '#FCA5A5' : '#F4F4F5';
+                toastEl.classList.add('show');
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => {
+                    toastEl.classList.remove('show');
+                }, 2400);
+            }
+
+            /* ===================== Web Audio API 纯代码恐怖音效引擎 ===================== */
+            let audioCtx = null;
+            let humGain = null;
+            let droneGain = null;
+            let heartbeatInterval = null;
+            let crackleInterval = null;
+
+            function initAudio() {
+                if (state.audioInitialized) return;
+                try {
+                    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                    audioCtx = new AudioContextClass();
+
+                    // 1. 55Hz 日光灯电流嗡鸣声 (35% - 65%)
+                    const humOsc = audioCtx.createOscillator();
+                    const humOsc2 = audioCtx.createOscillator();
+                    const humFilter = audioCtx.createBiquadFilter();
+                    humGain = audioCtx.createGain();
+
+                    humOsc.type = 'sine';
+                    humOsc.frequency.value = 55;
+                    humOsc2.type = 'triangle';
+                    humOsc2.frequency.value = 110;
+
+                    humFilter.type = 'lowpass';
+                    humFilter.frequency.value = 180;
+
+                    humGain.gain.value = 0;
+
+                    humOsc.connect(humFilter);
+                    humOsc2.connect(humFilter);
+                    humFilter.connect(humGain);
+                    humGain.connect(audioCtx.destination);
+                    humOsc.start();
+                    humOsc2.start();
+
+                    // 2. 不和谐低频 Dark Ambient Drone (65% - 100%)
+                    const droneOsc1 = audioCtx.createOscillator();
+                    const droneOsc2 = audioCtx.createOscillator();
+                    const droneFilter = audioCtx.createBiquadFilter();
+                    droneGain = audioCtx.createGain();
+
+                    droneOsc1.type = 'sawtooth';
+                    droneOsc1.frequency.value = 41.2; // E1
+                    droneOsc2.type = 'sawtooth';
+                    droneOsc2.frequency.value = 43.65; // F1 (微弱不和谐拍频)
+
+                    droneFilter.type = 'lowpass';
+                    droneFilter.frequency.value = 135;
+
+                    droneGain.gain.value = 0;
+
+                    droneOsc1.connect(droneFilter);
+                    droneOsc2.connect(droneFilter);
+                    droneFilter.connect(droneGain);
+                    droneGain.connect(audioCtx.destination);
+                    droneOsc1.start();
+                    droneOsc2.start();
+
+                    // 3. 低沉心跳声 (lub-dub)
+                    heartbeatInterval = setInterval(() => {
+                        if (!state.audioEnabled || !audioCtx || state.progress < 0.62) return;
+                        const intensity = Math.min(1, (state.progress - 0.62) / 0.35);
+                        playHeartbeat(intensity * 0.28);
+                    }, 950);
+
+                    // 4. 随机电流滋啦声
+                    crackleInterval = setInterval(() => {
+                        if (!state.audioEnabled || !audioCtx || state.progress < 0.58) return;
+                        if (Math.random() < (state.progress - 0.5) * 0.7) {
+                            playStaticBurst(0.06 * state.progress);
+                        }
+                    }, 1800);
+
+                    state.audioInitialized = true;
+                } catch (e) {
+                    console.warn('Web Audio API 不可用:', e);
+                }
+            }
+
+            function playHeartbeat(vol) {
+                if (!audioCtx) return;
+                const now = audioCtx.currentTime;
+                [0, 0.18].forEach((offset, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(idx === 0 ? 64 : 52, now + offset);
+                    osc.frequency.exponentialRampToValueAtTime(28, now + offset + 0.14);
+
+                    g.gain.setValueAtTime(0.001, now + offset);
+                    g.gain.linearRampToValueAtTime(idx === 0 ? vol : vol * 0.72, now + offset + 0.03);
+                    g.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.2);
+
+                    osc.connect(g);
+                    g.connect(audioCtx.destination);
+                    osc.start(now + offset);
+                    osc.stop(now + offset + 0.22);
+                });
+            }
+
+            function playStaticBurst(vol) {
+                if (!audioCtx) return;
+                const bufferSize = audioCtx.sampleRate * 0.08;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.4));
+                }
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = 1800 + Math.random() * 2000;
+
+                const g = audioCtx.createGain();
+                g.gain.value = vol;
+
+                noise.connect(filter);
+                filter.connect(g);
+                g.connect(audioCtx.destination);
+                noise.start();
+            }
+
+            function playJumpscareSting() {
+                if (!state.audioEnabled) return;
+                initAudio();
+                if (!audioCtx) return;
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const now = audioCtx.currentTime;
+                // 低频轰鸣 + 刺耳不和谐高频
+                [48, 51, 311, 666].forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    osc.type = i < 2 ? 'sawtooth' : 'square';
+                    osc.frequency.setValueAtTime(freq, now);
+                    osc.frequency.linearRampToValueAtTime(freq * (i < 2 ? 0.6 : 1.15), now + 1.15);
+
+                    g.gain.setValueAtTime(0.001, now);
+                    g.gain.linearRampToValueAtTime(i < 2 ? 0.22 : 0.07, now + 0.04);
+                    g.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+
+                    osc.connect(g);
+                    g.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 1.22);
+                });
+            }
+
+            function updateAudioLevels(p) {
+                if (!state.audioEnabled || !audioCtx || !humGain || !droneGain) return;
+                const now = audioCtx.currentTime;
+                // 0-35% 安静
+                let targetHum = 0;
+                let targetDrone = 0;
+                if (p > 0.35) {
+                    targetHum = Math.min(0.055, ((p - 0.35) / 0.3) * 0.055);
+                }
+                if (p > 0.62) {
+                    targetDrone = Math.min(0.11, ((p - 0.62) / 0.38) * 0.11);
+                }
+                humGain.gain.setTargetAtTime(targetHum, now, 0.2);
+                droneGain.gain.setTargetAtTime(targetDrone, now, 0.25);
+            }
+
+            function setAudioState(enabled) {
+                state.audioEnabled = enabled;
+                if (enabled) {
+                    initAudio();
+                    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+                    audioIconOn.classList.remove('hidden');
+                    audioIconOff.classList.add('hidden');
+                    audioLabel.textContent = '音效已开';
+                    updateAudioLevels(state.progress);
+                } else {
+                    audioIconOn.classList.add('hidden');
+                    audioIconOff.classList.remove('hidden');
+                    audioLabel.textContent = '开启音效';
+                    if (audioCtx && humGain && droneGain) {
+                        humGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+                        droneGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+                    }
+                }
+            }
+
+            audioBtn.addEventListener('click', () => {
+                setAudioState(!state.audioEnabled);
+                if (state.audioEnabled) showToast('沉浸环境音效已开启（建议佩戴耳机）');
+            });
+
+            // 首次点击页面任意处若未手动静音则自动温和启用音频
+            let autoAudioAttempted = false;
+            window.addEventListener('pointerdown', (e) => {
+                if (autoAudioAttempted || e.target.closest('#audio-toggle-btn')) return;
+                autoAudioAttempted = true;
+                setAudioState(true);
+            }, { once: true });
+
+            /* ===================== 实时时钟与停留秒数 ===================== */
+            function updateClocks() {
+                const now = new Date();
+                const hh = String(now.getHours()).padStart(2, '0');
+                const mm = String(now.getMinutes()).padStart(2, '0');
+                const ss = String(now.getSeconds()).padStart(2, '0');
+                sensorClockEl.textContent = `${hh}:${mm}:${ss}`;
+                mockPhoneTimeEl.textContent = `${hh}:${mm}`;
+            }
+            updateClocks();
+
+            setInterval(() => {
+                state.secondsOnPage += 1;
+                liveSecondsEl.textContent = state.secondsOnPage;
+                updateClocks();
+
+                // 若处于第二阶段胶囊，动态更新秒数文案
+                if (state.progress >= 0.25 && state.progress < 0.5 && !state.hauntedLoop) {
+                    capsuleStatus.textContent = `你已经盯着我看了 ${state.secondsOnPage} 秒`;
+                }
+            }, 1000);
+
+            /* ===================== 荣耀灵动胶囊交互 ===================== */
+            capsule.addEventListener('click', (e) => {
+                if (e.target.closest('#dnd-btn')) return;
+                // 第五阶段锁定展开，不允许收起
+                if (state.progress >= 0.9) {
+                    capsule.classList.add('expanded');
+                    state.capsuleExpanded = true;
+                    showToast('全屏护眼提醒已锁定，无法收起', true);
+                    return;
+                }
+                state.capsuleExpanded = !state.capsuleExpanded;
+                capsule.classList.toggle('expanded', state.capsuleExpanded);
+            });
+
+            // 「今日勿扰」按钮随滚动进度黑化
+            dndBtn.addEventListener('mouseenter', () => {
+                if (state.progress >= 0.75) {
+                    // 按钮躲避鼠标
+                    state.dndDodgeCount++;
+                    const dx = (Math.random() > 0.5 ? 1 : -1) * (24 + Math.random() * 28);
+                    const dy = (Math.random() > 0.5 ? 1 : -1) * (10 + Math.random() * 14);
+                    dndBtn.style.transform = `translate(${dx}px, ${dy}px)`;
+                    dndBtn.textContent = state.dndDodgeCount % 2 === 0 ? '永不勿扰' : '你逃不掉的';
+                    dndBtn.style.borderColor = 'rgba(239, 68, 68, 0.7)';
+                    dndBtn.style.color = '#FCA5A5';
+                }
+            });
+
+            dndBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const p = state.progress;
+
+                if (state.hauntedLoop && p < 0.25) {
+                    showToast('别关掉我，我只是想多看看你', true);
+                    return;
+                }
+
+                if (p < 0.25) {
+                    showToast('已暂停今日提醒');
+                    state.capsuleExpanded = false;
+                    capsule.classList.remove('expanded');
+                } else if (p < 0.5) {
+                    dndBtn.classList.remove('tremble');
+                    void dndBtn.offsetWidth;
+                    dndBtn.classList.add('tremble');
+                    showToast('为了您的健康，暂不建议关闭');
+                } else if (p < 0.75) {
+                    dndBtn.classList.remove('tremble');
+                    void dndBtn.offsetWidth;
+                    dndBtn.classList.add('tremble');
+                    dndBtn.textContent = '不要关掉我';
+                    showToast('检测到你身后光线过暗，无法开启勿扰', true);
+                } else {
+                    // 75%-100% 触发恐怖全屏提醒弹窗
+                    modalTitle.textContent = '护眼监测权限已接管';
+                    modalDesc.textContent = '你的双眼已经连续注视屏幕 ' + state.secondsOnPage + ' 秒。系统已禁止“今日勿扰”，请继续保持凝视。';
+                    horrorModal.classList.add('active');
+                    playStaticBurst(0.15);
+                }
+            });
+
+            modalCloseBtn.addEventListener('click', () => {
+                horrorModal.classList.remove('active');
+            });
+
+            /* ===================== 荣耀「护眼监测」设置开关交互 ===================== */
+            eyeCareSwitch.addEventListener('click', () => {
+                if (state.hauntedLoop) {
+                    eyeCareSwitch.classList.remove('tremble');
+                    void eyeCareSwitch.offsetWidth;
+                    eyeCareSwitch.classList.add('tremble');
+                    showToast('监测已永久锁死，你已经答应交给我了', true);
+                    return;
+                }
+
+                if (eyeCareSwitch.classList.contains('on')) {
+                    eyeCareSwitch.classList.remove('on');
+                    eyeCareSwitch.setAttribute('aria-checked', 'false');
+                    showToast('正在尝试关闭护眼监测...');
+
+                    clearTimeout(state.switchLockTimer);
+                    state.switchLockTimer = setTimeout(() => {
+                        eyeCareSwitch.classList.add('on');
+                        eyeCareSwitch.setAttribute('aria-checked', 'true');
+                        creepyFootnote.classList.remove('hidden');
+                        privacyDisclaimer.innerHTML = '为了你的安全，系统已自动重新开启护眼监测。<span class="text-red-400">不要试图在黑暗中躲避它。</span>';
+                        showToast('为了您的用眼安全，已自动重新开启', true);
+                        playStaticBurst(0.08);
+                    }, 1500);
+                }
+            });
+
+            learnMoreBtn.addEventListener('click', () => {
+                creepyFootnote.classList.remove('hidden');
+                showToast('已展开本地视觉采集补充协议');
+            });
+
+            /* ===================== 滚动驱动五阶段平滑过渡 ===================== */
+            function lerp(a, b, t) {
+                return a + (b - a) * Math.max(0, Math.min(1, t));
+            }
+
+            function lerpColor(c1, c2, t) {
+                const ct = Math.max(0, Math.min(1, t));
+                const r = Math.round(lerp(c1[0], c2[0], ct));
+                const g = Math.round(lerp(c1[1], c2[1], ct));
+                const b = Math.round(lerp(c1[2], c2[2], ct));
+                return `rgb(${r}, ${g}, ${b})`;
+            }
+
+            const stage1Texts = document.querySelectorAll('.stage1-text');
+            const stage1Subs = document.querySelectorAll('.stage1-sub');
+            const stage1Cards = document.querySelectorAll('.stage1-card');
+
+            function updateOnScroll() {
+                const scrollTop = window.scrollY || document.documentElement.scrollTop;
+                const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                const p = docHeight > 0 ? Math.max(0, Math.min(1, scrollTop / docHeight)) : 0;
+                state.progress = p;
+                document.documentElement.style.setProperty('--p', p.toFixed(4));
+
+                // 1. 背景色平滑过渡：0~18% 纯白 -> 18%~38% 暗黑 #0A0A0C -> 70%~100% 死寂黑 #030303
+                if (p < 0.16) {
+                    body.style.backgroundColor = '#F8FAFC';
+                } else if (p < 0.36) {
+                    const t = (p - 0.16) / 0.20;
+                    body.style.backgroundColor = lerpColor([248, 250, 252], [10, 10, 12], t);
+                    // 过渡第一阶段卡片/文字可见度避免突兀
+                    const cardBg = lerpColor([255, 255, 255], [22, 22, 26], t);
+                    stage1Cards.forEach(el => {
+                        el.style.backgroundColor = cardBg;
+                        el.style.borderColor = `rgba(148,163,184,${lerp(0.25, 0.08, t)})`;
+                    });
+                    stage1Texts.forEach(el => el.style.color = lerpColor([15, 23, 42], [228, 228, 231], t));
+                    stage1Subs.forEach(el => el.style.color = lerpColor([100, 116, 139], [161, 161, 170], t));
+                } else if (p < 0.72) {
+                    const t = (p - 0.36) / 0.36;
+                    body.style.backgroundColor = lerpColor([10, 10, 12], [3, 3, 3], t);
+                } else {
+                    body.style.backgroundColor = '#030303';
+                }
+
+                // 2. 视觉压迫叠层：暗角、CRT 扫描线、血红暗角
+                vignetteOverlay.style.opacity = p > 0.35 ? Math.min(0.95, (p - 0.35) * 1.6) : 0;
+                crtOverlay.style.opacity = p > 0.45 ? Math.min(0.65, (p - 0.45) * 1.3) : 0;
+                bloodVignette.style.opacity = p > 0.72 ? Math.min(1, (p - 0.72) * 3.2) : 0;
+
+                // 3. 传感器面板读数随滚动变得诡异
+                const simDist = Math.max(4.2, 27.5 - p * 28).toFixed(1);
+                liveDistanceEl.textContent = `${simDist} cm`;
+                if (p > 0.32) {
+                    liveDistanceEl.className = 'text-xl font-mono-tech font-semibold text-red-400';
+                    irStatusEl.textContent = '已锁定双眼虹膜';
+                    stareCommentEl.textContent = '你的瞳孔正在微微放大';
+                } else {
+                    liveDistanceEl.className = 'text-xl font-mono-tech font-semibold text-emerald-400';
+                    irStatusEl.textContent = '静默待机中';
+                    stareCommentEl.textContent = '用眼习惯良好';
+                }
+
+                // 4. 顶部荣耀灵动胶囊随进度黑化
+                updateCapsuleState(p);
+
+                // 5. 更新音效音量
+                updateAudioLevels(p);
+            }
+
+            function updateCapsuleState(p) {
+                const root = document.documentElement;
+                capsule.classList.remove('capsule-glitch');
+
+                // 若处于回环彩蛋且回到顶部
+                if (state.hauntedLoop && p < 0.25) {
+                    root.style.setProperty('--capsule-glow', 'rgba(220, 38, 38, 0.55)');
+                    root.style.setProperty('--capsule-accent', '#EF4444');
+                    root.style.setProperty('--capsule-border', 'rgba(239, 68, 68, 0.45)');
+                    eyeVeins.setAttribute('opacity', '0.75');
+                    capsuleDot.className = 'w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 animate-pulse';
+                    capsuleStatus.className = 'text-[13px] font-medium tracking-wide text-red-300 truncate max-w-[175px]';
+                    capsuleStatus.textContent = '欢迎回来，我一直看着你';
+                    capsuleCardTitle.textContent = '欢迎回来';
+                    capsuleCardSub.textContent = '别再试图关闭护眼监测了';
+                    dndBtn.style.transform = '';
+                    dndBtn.textContent = '无法勿扰';
+                    return;
+                }
+
+                if (p < 0.25) {
+                    // 0%-25%：温柔护眼翠绿
+                    root.style.setProperty('--capsule-glow', 'rgba(0, 200, 83, 0.58)');
+                    root.style.setProperty('--capsule-accent', '#00E676');
+                    root.style.setProperty('--capsule-border', 'rgba(0, 230, 118, 0.35)');
+                    eyeVeins.setAttribute('opacity', '0');
+                    capsuleDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 opacity-85';
+                    capsuleStatus.className = 'text-[13px] font-medium tracking-wide text-emerald-300 truncate max-w-[165px]';
+                    capsuleStatus.textContent = p < 0.1 ? '护眼监测运行中' : (p < 0.18 ? '光线适宜 · 绿洲护眼' : '低头看屏');
+                    capsuleCardTitle.textContent = '避免低头看屏';
+                    capsuleCardSub.textContent = '保护颈部健康 · 建议抬高手机';
+                    dndBtn.textContent = '今日勿扰';
+                    dndBtn.style.transform = '';
+                    dndBtn.style.color = '#F3F4F6';
+                    dndBtn.style.borderColor = 'rgba(255,255,255,0.14)';
+                } else if (p < 0.5) {
+                    // 25%-50%：过于亲密诡异
+                    root.style.setProperty('--capsule-glow', 'rgba(16, 185, 129, 0.5)');
+                    root.style.setProperty('--capsule-accent', '#34D399');
+                    root.style.setProperty('--capsule-border', 'rgba(52, 211, 153, 0.35)');
+                    eyeVeins.setAttribute('opacity', '0.15');
+                    capsuleDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 animate-pulse';
+                    capsuleStatus.className = 'text-[13px] font-medium tracking-wide text-emerald-200 truncate max-w-[175px]';
+                    if (p < 0.34) {
+                        capsuleStatus.textContent = '距离屏幕过近：24cm';
+                    } else if (p < 0.42) {
+                        capsuleStatus.textContent = `你已经盯着我看了 ${state.secondsOnPage} 秒`;
+                    } else {
+                        capsuleStatus.textContent = '眨眼频率过低';
+                    }
+                    capsuleCardTitle.textContent = '你离屏幕太近了';
+                    capsuleCardSub.textContent = '我能数清你睫毛的倒影';
+                    dndBtn.textContent = '今日勿扰';
+                    dndBtn.style.transform = '';
+                } else if (p < 0.75) {
+                    // 50%-75%：病态惨绿，偶尔闪烁血红
+                    const flashRed = Math.sin(p * 120) > 0.85;
+                    root.style.setProperty('--capsule-glow', flashRed ? 'rgba(220, 38, 38, 0.65)' : 'rgba(132, 204, 22, 0.52)');
+                    root.style.setProperty('--capsule-accent', flashRed ? '#EF4444' : '#A3E635');
+                    root.style.setProperty('--capsule-border', flashRed ? 'rgba(239, 68, 68, 0.5)' : 'rgba(163, 230, 53, 0.38)');
+                    eyeVeins.setAttribute('opacity', '0.55');
+                    capsuleDot.className = 'w-1.5 h-1.5 rounded-full bg-lime-400 shrink-0 animate-ping';
+                    capsuleStatus.className = 'text-[13px] font-medium tracking-wide text-lime-200 truncate max-w-[175px]';
+
+                    if (p < 0.58) {
+                        capsuleStatus.textContent = '检测到：环境光过暗';
+                    } else if (p < 0.67) {
+                        capsuleStatus.textContent = '检测到：你身后有人';
+                    } else {
+                        capsuleStatus.textContent = '不要抬头';
+                    }
+                    capsuleCardTitle.textContent = '检测到背后阴影异常';
+                    capsuleCardSub.textContent = '请保持低头，千万不要回头看';
+                } else if (p < 0.9) {
+                    // 75%-90%：暗红血光、剧烈故障、布满血丝
+                    root.style.setProperty('--capsule-glow', 'rgba(220, 38, 38, 0.78)');
+                    root.style.setProperty('--capsule-accent', '#EF4444');
+                    root.style.setProperty('--capsule-border', 'rgba(239, 68, 68, 0.65)');
+                    eyeVeins.setAttribute('opacity', '1');
+                    capsule.classList.add('capsule-glitch');
+                    capsuleDot.className = 'w-2 h-2 rounded-full bg-red-600 shrink-0 animate-ping';
+                    capsuleStatus.className = 'text-[13px] font-bold tracking-wider text-red-400 truncate max-w-[175px]';
+                    capsuleStatus.textContent = '正在接管你的视线...';
+                    capsuleCardTitle.textContent = '无法停止监测';
+                    capsuleCardSub.textContent = '屏幕里的东西正在看着你';
+                } else {
+                    // 90%-100%：锁定展开，最后通牒
+                    root.style.setProperty('--capsule-glow', 'rgba(239, 68, 68, 0.92)');
+                    root.style.setProperty('--capsule-accent', '#FF1E1E');
+                    root.style.setProperty('--capsule-border', 'rgba(239, 68, 68, 0.85)');
+                    eyeVeins.setAttribute('opacity', '1');
+                    capsule.classList.add('expanded');
+                    capsule.classList.add('capsule-glitch');
+                    state.capsuleExpanded = true;
+                    capsuleCardTitle.innerHTML = '<span class="text-red-400">全屏护眼提醒</span>';
+                    capsuleCardSub.innerHTML = '<span class="text-red-200/90">为了保护你的眼睛，请把它们交给我</span>';
+                    dndBtn.textContent = '永不勿扰';
+                }
+            }
+
+            window.addEventListener('scroll', updateOnScroll, { passive: true });
+            updateOnScroll();
+
+            /* ===================== 指针追踪（胶囊眼睛 + 第四阶段巨眼） ===================== */
+            function handlePointerMove(x, y) {
+                state.mouseX = x;
+                state.mouseY = y;
+
+                // 50% 以后胶囊里的眼睛开始跟随鼠标转动
+                if (state.progress >= 0.45 || state.hauntedLoop) {
+                    const rect = capsule.getBoundingClientRect();
+                    const cx = rect.left + 26;
+                    const cy = rect.top + rect.height / 2;
+                    const angle = Math.atan2(y - cy, x - cx);
+                    const dist = Math.min(3.6, Math.hypot(x - cx, y - cy) / 70);
+                    const px = 18 + Math.cos(angle) * dist;
+                    const py = 18 + Math.sin(angle) * (dist * 0.65);
+                    capsulePupil.setAttribute('cx', px.toFixed(2));
+                    capsulePupil.setAttribute('cy', py.toFixed(2));
+                    capsulePupilOuter.setAttribute('cx', (18 + Math.cos(angle) * dist * 0.55).toFixed(2));
+                    capsulePupilOuter.setAttribute('cy', (18 + Math.sin(angle) * dist * 0.35).toFixed(2));
+                } else {
+                    capsulePupil.setAttribute('cx', '18');
+                    capsulePupil.setAttribute('cy', '18');
+                    capsulePupilOuter.setAttribute('cx', '18');
+                    capsulePupilOuter.setAttribute('cy', '18');
+                }
+            }
+
+            window.addEventListener('mousemove', (e) => handlePointerMove(e.clientX, e.clientY), { passive: true });
+            window.addEventListener('touchmove', (e) => {
+                if (e.touches && e.touches[0]) {
+                    handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            }, { passive: true });
+
+            /* ===================== 第四阶段：逼真血丝巨眼 Canvas ===================== */
+            const eyeCanvas = document.getElementById('giant-eye-canvas');
+            const eyeContainer = document.getElementById('eye-canvas-container');
+            const eyeCoordsLabel = document.getElementById('eye-coords');
+            const ctx = eyeCanvas.getContext('2d');
+
+            let canvasW = 0, canvasH = 0;
+            let currentLookX = 0, currentLookY = 0;
+            let blinkAmount = 0; // 0 = 睁开, 1 = 闭合
+            let nextBlinkTime = performance.now() + 2500;
+            let isBlinking = false;
+            let blinkDir = 1;
+
+            // 预生成血丝路径，避免每帧乱跳
+            const veinSeeds = Array.from({ length: 28 }, (_, i) => {
+                const side = i % 2 === 0 ? -1 : 1;
+                const angle = (Math.random() - 0.5) * 1.15;
+                return {
+                    side,
+                    angle,
+                    len: 0.35 + Math.random() * 0.35,
+                    wobble: (Math.random() - 0.5) * 28,
+                    width: 0.7 + Math.random() * 1.4
+                };
+            });
+
+            function resizeEyeCanvas() {
+                const rect = eyeContainer.getBoundingClientRect();
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                canvasW = rect.width;
+                canvasH = rect.height;
+                eyeCanvas.width = Math.floor(canvasW * dpr);
+                eyeCanvas.height = Math.floor(canvasH * dpr);
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+
+            window.addEventListener('resize', resizeEyeCanvas);
+            resizeEyeCanvas();
+
+            function drawGiantEye(now) {
+                requestAnimationFrame(drawGiantEye);
+                // 仅在接近第四阶段时高频绘制，节省性能
+                if (state.progress < 0.55) return;
+
+                ctx.clearRect(0, 0, canvasW, canvasH);
+
+                // 1. 漆黑底色 + 细微噪点感
+                ctx.fillStyle = '#030303';
+                ctx.fillRect(0, 0, canvasW, canvasH);
+
+                // 暗红脉冲背景光晕
+                const pulse = 0.5 + 0.5 * Math.sin(now * 0.0025);
+                const bgGrad = ctx.createRadialGradient(canvasW / 2, canvasH / 2, 20, canvasW / 2, canvasH / 2, canvasW * 0.55);
+                bgGrad.addColorStop(0, `rgba(120, 10, 10, ${0.18 + pulse * 0.08})`);
+                bgGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = bgGrad;
+                ctx.fillRect(0, 0, canvasW, canvasH);
+
+                // 2. 计算凝视方向
+                const rect = eyeContainer.getBoundingClientRect();
+                const eyeCenterX = rect.left + canvasW / 2;
+                const eyeCenterY = rect.top + canvasH / 2;
+                const dx = (state.mouseX - eyeCenterX) / (window.innerWidth * 0.5);
+                const dy = (state.mouseY - eyeCenterY) / (window.innerHeight * 0.5);
+
+                const clampedX = Math.max(-1, Math.min(1, dx));
+                const clampedY = Math.max(-1, Math.min(1, dy));
+
+                // 轻微不自主抽搐
+                const twitchX = (Math.random() < 0.04) ? (Math.random() - 0.5) * 0.14 : 0;
+                const twitchY = (Math.random() < 0.04) ? (Math.random() - 0.5) * 0.14 : 0;
+
+                currentLookX += (clampedX + twitchX - currentLookX) * 0.12;
+                currentLookY += (clampedY + twitchY - currentLookY) * 0.12;
+
+                eyeCoordsLabel.textContent = `TARGET: (${currentLookX.toFixed(2)}, ${currentLookY.toFixed(2)})`;
+
+                // 3. 不规律抽搐眨眼逻辑
+                if (!isBlinking && now > nextBlinkTime) {
+                    isBlinking = true;
+                    blinkDir = 1;
+                }
+                if (isBlinking) {
+                    blinkAmount += blinkDir * 0.18;
+                    if (blinkAmount >= 1) {
+                        blinkAmount = 1;
+                        blinkDir = -1;
+                    } else if (blinkAmount <= 0) {
+                        blinkAmount = 0;
+                        isBlinking = false;
+                        nextBlinkTime = now + 1800 + Math.random() * 4800;
+                    }
+                }
+
+                const cx = canvasW / 2;
+                const cy = canvasH / 2;
+                const eyeW = Math.min(canvasW * 0.42, 260);
+                const openH = Math.min(canvasH * 0.34, 130) * (1 - blinkAmount * 0.96);
+
+                ctx.save();
+                // 裁剪出眼眶形状
+                ctx.beginPath();
+                ctx.moveTo(cx - eyeW, cy);
+                ctx.quadraticCurveTo(cx, cy - openH * 1.45, cx + eyeW, cy);
+                ctx.quadraticCurveTo(cx, cy + openH * 1.45, cx - eyeW, cy);
+                ctx.closePath();
+                ctx.clip();
+
+                // 4. 病态微黄带暗红阴影的巩膜（眼白）
+                const scleraGrad = ctx.createRadialGradient(cx, cy, eyeW * 0.15, cx, cy, eyeW * 1.05);
+                scleraGrad.addColorStop(0, '#D6C7C2');
+                scleraGrad.addColorStop(0.65, '#8F6F6B');
+                scleraGrad.addColorStop(1, '#2B0B0B');
+                ctx.fillStyle = scleraGrad;
+                ctx.fillRect(cx - eyeW, cy - openH * 1.5, eyeW * 2, openH * 3);
+
+                // 5. 密集血丝
+                veinSeeds.forEach(v => {
+                    const startX = cx + v.side * eyeW * 0.98;
+                    const startY = cy + Math.sin(v.angle) * openH * 0.7;
+                    const endX = cx + v.side * eyeW * (1 - v.len);
+                    const endY = cy + Math.sin(v.angle) * openH * 0.35 + v.wobble * 0.3;
+                    const midX = (startX + endX) / 2;
+                    const midY = (startY + endY) / 2 + v.wobble * 0.4;
+
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.quadraticCurveTo(midX, midY, endX, endY);
+                    ctx.strokeStyle = `rgba(185, 22, 22, ${0.42 + pulse * 0.25})`;
+                    ctx.lineWidth = v.width;
+                    ctx.stroke();
+                });
+
+                // 6. 虹膜与瞳孔（跟随凝视）
+                const irisR = Math.min(eyeW * 0.34, 76);
+                const irisX = cx + currentLookX * (eyeW * 0.34);
+                const irisY = cy + currentLookY * (openH * 0.36);
+
+                // 虹膜外圈深红黑
+                const irisGrad = ctx.createRadialGradient(irisX, irisY, irisR * 0.2, irisX, irisY, irisR);
+                irisGrad.addColorStop(0, '#000000');
+                irisGrad.addColorStop(0.45, '#5C0B0B');
+                irisGrad.addColorStop(0.82, '#991B1B');
+                irisGrad.addColorStop(1, '#1A0303');
+
+                ctx.beginPath();
+                ctx.arc(irisX, irisY, irisR, 0, Math.PI * 2);
+                ctx.fillStyle = irisGrad;
+                ctx.fill();
+
+                // 虹膜放射纹理
+                ctx.save();
+                ctx.translate(irisX, irisY);
+                for (let a = 0; a < 48; a++) {
+                    const ang = (a / 48) * Math.PI * 2;
+                    ctx.beginPath();
+                    ctx.moveTo(Math.cos(ang) * irisR * 0.36, Math.sin(ang) * irisR * 0.36);
+                    ctx.lineTo(Math.cos(ang) * irisR * 0.92, Math.sin(ang) * irisR * 0.92);
+                    ctx.strokeStyle = a % 2 === 0 ? 'rgba(239, 68, 68, 0.28)' : 'rgba(0, 0, 0, 0.4)';
+                    ctx.lineWidth = 1.2;
+                    ctx.stroke();
+                }
+                ctx.restore();
+
+                // 瞳孔（随心跳微弱缩放）
+                const pupilR = irisR * (0.42 + pulse * 0.05);
+                ctx.beginPath();
+                ctx.arc(irisX, irisY, pupilR, 0, Math.PI * 2);
+                ctx.fillStyle = '#020202';
+                ctx.fill();
+
+                // 冰冷的屏幕反光（像在倒映用户的手机屏幕）
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.72)';
+                ctx.beginPath();
+                ctx.roundRect(irisX - irisR * 0.32, irisY - irisR * 0.34, irisR * 0.22, irisR * 0.34, 4);
+                ctx.fill();
+
+                ctx.fillStyle = 'rgba(255, 200, 200, 0.35)';
+                ctx.beginPath();
+                ctx.arc(irisX + irisR * 0.28, irisY + irisR * 0.22, irisR * 0.08, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+
+                // 7. 眼眶边缘暗影描边
+                ctx.beginPath();
+                ctx.moveTo(cx - eyeW, cy);
+                ctx.quadraticCurveTo(cx, cy - openH * 1.45, cx + eyeW, cy);
+                ctx.quadraticCurveTo(cx, cy + openH * 1.45, cx - eyeW, cy);
+                ctx.closePath();
+                ctx.strokeStyle = 'rgba(180, 20, 20, 0.55)';
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+
+                // 8. 稀疏胶片噪点颗粒
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                for (let n = 0; n < 45; n++) {
+                    ctx.fillRect(Math.random() * canvasW, Math.random() * canvasH, 2, 2);
+                }
+            }
+
+            requestAnimationFrame(drawGiantEye);
+
+            /* ===================== 第五阶段高潮结局 & 回环彩蛋 ===================== */
+            climaxEndBtn.addEventListener('click', () => {
+                // 1. 触发 1.2 秒剧烈故障闪屏 + 血红巨眼 + 恐怖音效
+                climaxJumpscare.classList.add('active');
+                playJumpscareSting();
+
+                setTimeout(() => {
+                    climaxJumpscare.classList.remove('active');
+
+                    // 2. 激活回环彩蛋状态
+                    state.hauntedLoop = true;
+
+                    // 3. 瞬间切回顶部明亮纯白营销页
+                    window.scrollTo({ top: 0, behavior: 'instant' });
+
+                    // 4. 恢复顶部卡片为明亮纯白，但埋下毛骨悚然的彩蛋
+                    stage1Cards.forEach(el => {
+                        el.style.backgroundColor = '#ffffff';
+                        el.style.borderColor = 'rgba(226, 232, 240, 0.9)';
+                    });
+                    stage1Texts.forEach(el => el.style.color = '#0f172a');
+                    stage1Subs.forEach(el => el.style.color = '#64748b');
+
+                    heroTitle.innerHTML = '绿洲 AI 护眼监测<br><span class="bg-gradient-to-r from-[#00C853] via-emerald-500 to-red-600 bg-clip-text text-transparent">我看见你的每一次凝视</span>';
+                    heroSubtitle.textContent = '欢迎回来。你刚才试图闭上眼睛，但绿洲 AI 已经永久接管了你的视线守护。';
+
+                    // 永久锁死护眼监测开关
+                    eyeCareSwitch.classList.remove('on');
+                    eyeCareSwitch.classList.add('cursed');
+                    creepyFootnote.classList.remove('hidden');
+                    privacyDisclaimer.innerHTML = '护眼监测已<strong class="text-red-500">永久锁定</strong>。你无法再关闭它。';
+
+                    // 胶囊收起并展现微红血丝彩蛋
+                    state.capsuleExpanded = false;
+                    capsule.classList.remove('expanded');
+                    updateOnScroll();
+
+                    showToast('护眼监测已重新连接：欢迎回来', true);
+                }, 1200);
+            });
+        })();
+    </script>
+</body>
+</html>
